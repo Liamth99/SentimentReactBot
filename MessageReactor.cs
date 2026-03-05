@@ -21,6 +21,9 @@ public class MessageReactor : IDisposable
 
     private DateTime _lastRecap = DateTime.MinValue;
 
+    // I know this is bad, but it's not a long lived application it'll be fine
+    HttpClient _httpClient = new ();
+
     private MessageReactor(Configuration config, Chat chat, DiscordClient client, OllamaApiClient ollamaClient)
     {
         _chat         = chat;
@@ -74,8 +77,25 @@ public class MessageReactor : IDisposable
                 _client.Logger.LogInformation(new EventId(901, "React"), "Processing \"{Content}\" from {User}", args.Message.Content, args.Author.Username);
 
                 string response = string.Empty;
+                List<byte[]>? images = null;
 
-                await foreach (var s in _chat.SendAsync($"{args.Author.Username} sent: {args.Message.Content}{(args.Message.ReferencedMessage is null ? "" : $"\nResponding to {args.Message.ReferencedMessage.Author.Username}: {args.Message.ReferencedMessage.Content}")}"))
+                foreach (DiscordAttachment attachment in args.Message.Attachments.Where(x => x.FileSize < 1_000_000 && x.MediaType.StartsWith("image")))
+                {
+                    images ??= [];
+
+                    var httpResponse = await _httpClient.GetByteArrayAsync(attachment.Url);
+                    images.Add(httpResponse);
+                }
+
+                foreach (DiscordMessageSticker sticker in args.Message.Stickers.Where(x => x.FormatType is StickerFormat.PNG))
+                {
+                    images ??= [];
+
+                    var httpResponse = await _httpClient.GetByteArrayAsync(sticker.StickerUrl);
+                    images.Add(httpResponse);
+                }
+
+                await foreach (var s in _chat.SendAsync($"{args.Author.Username} sent: {args.Message.Content}{(args.Message.ReferencedMessage is null ? "" : $"\nResponding to {args.Message.ReferencedMessage.Author.Username}: {args.Message.ReferencedMessage.Content}")}", images))
                     response += s;
 
                 _client.Logger.LogDebug(new EventId(900, "Ollama"), response);
@@ -110,7 +130,9 @@ public class MessageReactor : IDisposable
         if(args.Author.IsBot)
             return;
 
-        if (string.IsNullOrWhiteSpace(args.Message.Content))
+        if (string.IsNullOrWhiteSpace(args.Message.Content) &&
+            args.Message.Attachments.Count(x => x.FileSize < 1_000_000 && x.MediaType.StartsWith("image")) == 0 &&
+            args.Message.Stickers.Count(x => x.FormatType is StickerFormat.PNG) == 0)
         {
             _client.Logger.LogWarning("Message was empty, check bot intents are set up correctly.");
             return;
