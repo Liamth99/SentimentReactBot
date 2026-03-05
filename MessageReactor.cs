@@ -19,6 +19,8 @@ public class MessageReactor : IDisposable
     private readonly CancellationTokenSource _cts = new();
     private readonly Task _processor;
 
+    private DateTime _lastRecap = DateTime.MinValue;
+
     private MessageReactor(Configuration config, Chat chat, DiscordClient client, OllamaApiClient ollamaClient)
     {
         _chat         = chat;
@@ -116,15 +118,23 @@ public class MessageReactor : IDisposable
 
         if (args.Message.Content.Trim().Equals("recap", StringComparison.OrdinalIgnoreCase) && args.Message.ReferencedMessage is not null)
         {
-            await RecapMessagesAsync(args.Channel, args.Message.ReferencedMessage);
+            await RecapMessagesAsync(args.Channel, args.Message, args.Message.ReferencedMessage);
             return;
         }
 
         await _channel.Writer.WriteAsync(args);
     }
 
-    public async Task RecapMessagesAsync(DiscordChannel channel, DiscordMessage message)
+    public async Task RecapMessagesAsync(DiscordChannel channel, DiscordMessage commandMessage, DiscordMessage message)
     {
+        if (DateTime.Now - _lastRecap < TimeSpan.FromMinutes(5))
+        {
+            await commandMessage.CreateReactionAsync(DiscordEmoji.FromName(_client, ":sleeping:"));
+            return;
+        }
+
+        _lastRecap = DateTime.Now;
+
         var messages = await channel.GetMessagesAfterAsync(message.Id);
 
         var responseMessage = await channel.SendMessageAsync($"Generating recap of {messages.Count} messages{(messages.Count == 100 ? "(the max amount)" : "")}. (this could take a minute or two)");
