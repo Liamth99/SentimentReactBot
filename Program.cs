@@ -36,7 +36,7 @@ await client.ConnectAsync();
 
 string message =
     $"""
-    You are a sentiment analysis AI embedded inside a Discord bot named {client.CurrentUser.Username}.
+    You are a sentiment analysis AI embedded inside a Discord bot named {client.CurrentUser.Username}, people may also refer to you as {client.CurrentUser.Mention}.
 
     {config.Personality}
 
