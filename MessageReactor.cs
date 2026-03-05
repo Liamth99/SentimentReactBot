@@ -75,7 +75,7 @@ public class MessageReactor : IDisposable
 
                 string response = string.Empty;
 
-                await foreach (var s in _chat.SendAsync($"{args.Author.Username} sent: {args.Message.Content}"))
+                await foreach (var s in _chat.SendAsync($"{args.Author.Username} sent: {args.Message.Content}{(args.Message.ReferencedMessage is null ? "" : $"\nResponding to {args.Message.ReferencedMessage.Author.Username}: {args.Message.ReferencedMessage.Content}")}"))
                     response += s;
 
                 _client.Logger.LogDebug(new EventId(900, "Ollama"), response);
