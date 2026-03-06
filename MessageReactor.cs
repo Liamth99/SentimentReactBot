@@ -79,7 +79,7 @@ public class MessageReactor : IDisposable
                 string response = string.Empty;
                 List<byte[]>? images = null;
 
-                foreach (DiscordAttachment attachment in args.Message.Attachments.Where(x => x.FileSize < 1_000_000 && x.MediaType.StartsWith("image")))
+                foreach (DiscordAttachment attachment in args.Message.Attachments.Where(x => x.FileSize < 5_000_000 && x.MediaType.StartsWith("image")))
                 {
                     images ??= [];
 
@@ -131,7 +131,7 @@ public class MessageReactor : IDisposable
             return;
 
         if (string.IsNullOrWhiteSpace(args.Message.Content) &&
-            args.Message.Attachments.Count(x => x.FileSize < 1_000_000 && x.MediaType.StartsWith("image")) == 0 &&
+            args.Message.Attachments.Count(x => x.FileSize < 5_000_000 && x.MediaType.StartsWith("image")) == 0 &&
             args.Message.Stickers.Count(x => x.FormatType is StickerFormat.PNG) == 0)
         {
             _client.Logger.LogWarning("Message was empty, check bot intents are set up correctly.");
